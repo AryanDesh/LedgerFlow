@@ -12,48 +12,51 @@ export const authOptions = {
           },
           // TODO: User credentials type from next-aut
           async authorize(credentials: any) {
-            // Do zod validation, OTP validation here
-            const hashedPassword = await bcrypt.hash(credentials.password, 10);
-            const existingUser = await db.user.findFirst({
-                where: {
-                    number: credentials.phone
-                }
-            });
-
-            if (existingUser) {
-                if(existingUser.password){
-
-                    const passwordValidation = await bcrypt.compare(credentials.password, existingUser.password);
-                    if (passwordValidation) {
-                        return {
-                            id: existingUser.id.toString(),
-                            name: existingUser.name,
-                            email: existingUser.number
-                        }
-                    }
-                }
-                return null;
-            }
-
-            try {
-                const user = await db.user.create({
-                    data: {
-                        number: credentials.phone,
-                        password: hashedPassword
+                console.log('Credentials:', credentials);
+            // DO zod validation
+                const existingUser = await db.user.findFirst({
+                    where: {
+                        number: credentials.phone
                     }
                 });
             
-                return {
-                    id: user.id.toString(),
-                    name: user.name,
-                    email: user.number
+                console.log('Existing User:', existingUser);
+            
+                if (existingUser) {
+                    if (existingUser.password) {
+                        const passwordValidation = await bcrypt.compare(credentials.password, existingUser.password);
+                        console.log('Password Validation:', passwordValidation);
+                        if (passwordValidation) {
+                            return {
+                                id: existingUser.id.toString(),
+                                name: existingUser.name,
+                                email: existingUser.number
+                            };
+                        }
+                    }
+                    return null; // Invalid password
                 }
-            } catch(e) {
-                console.error(e);
-            }
-
-            return null
-          },
+                // User does not exist, creating new user
+                try {
+                    const hashedPassword = await bcrypt.hash(credentials.password, 10);
+                    const user = await db.user.create({
+                        data: {
+                            number: credentials.phone,
+                            password: hashedPassword
+                        }
+                    });
+            
+                    return {
+                        id: user.id.toString(),
+                        name: user.name,
+                        email: user.number
+                    };
+                } catch (e) {
+                    console.error(e);
+                }
+            
+                return null;
+            }        
         })
     ],
     secret: process.env.JWT_SECRET || "secret",
