@@ -4,7 +4,6 @@ import prisma from "@repo/db/client"
 import { authOptions } from "../../lib/auth";
 import { BalanceCard } from "../../../components/BalanceCard";
 import { P2PTransactions } from "../../../components/P2PTransactions";
-import { p2pTransfer } from "../../lib/actions/p2pTransfer";
 
 async function getOutgoingTransaction() {
     const session = await getServerSession(authOptions);
@@ -15,7 +14,7 @@ async function getOutgoingTransaction() {
     });
     return txns.map(t => ({
         time: t.timestamp,
-        amount: - t.amount,
+        amount: -1*t.amount,
         direction : "outgoing"
     }))
 }
@@ -29,10 +28,19 @@ async function getIncomingTransaction() {
     });
     return txns.map(t => ({
         time: t.timestamp,
-        amount: + t.amount,
+        amount: t.amount,
         direction : "incoming"
     }))
 }
+
+async function getAllTransactions() {
+    const outgoingTxns = await getOutgoingTransaction();
+    const incomingTxns = await getIncomingTransaction();
+    const combinedTxns = [...outgoingTxns, ...incomingTxns];
+    combinedTxns.sort((a, b) => b.time.getTime() - a.time.getTime());
+    return combinedTxns;
+}
+
 
 async function getBalance() {
     const session = await getServerSession(authOptions);
@@ -49,8 +57,7 @@ async function getBalance() {
 
 export default async function() {
     const balance = await getBalance();
-    const inTransactions = await getIncomingTransaction();
-    const outTransactions = await getOutgoingTransaction();
+    const transactions= await getAllTransactions();
     return <div className="w-full">
         <div className="text-4xl text-[#6a51a6] pt-8 mb-8 font-bold">
             Help a Friend
@@ -62,8 +69,7 @@ export default async function() {
             <div>
                 <BalanceCard amount={balance.amount} locked={balance.locked} />
                 <div className="pt-4">
-                    <P2PTransactions transactions={outTransactions} />
-                    <P2PTransactions transactions={inTransactions} />
+                    <P2PTransactions transactions={transactions} />
                 </div>
             </div>
         </div>
